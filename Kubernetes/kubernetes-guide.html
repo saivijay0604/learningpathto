@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kubernetes — Zero to Hero</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --card: #1a2235;
+    --border: #243050;
+    --accent: #3b82f6;
+    --accent2: #06d6a0;
+    --accent3: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --code-bg: #0d1117;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    padding: 60px 0 40px;
+    text-align: center;
+    position: relative;
+  }
+
+  .k8s-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 24px;
+    animation: fadeDown 0.6s ease;
+  }
+
+  .dot { width: 7px; height: 7px; background: var(--accent2); border-radius: 50%; animation: pulse 2s infinite; }
+
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.8); } }
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+  h1 {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    animation: fadeDown 0.6s 0.1s both ease;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 1.1rem;
+    max-width: 540px;
+    margin: 0 auto 40px;
+    animation: fadeDown 0.6s 0.2s both ease;
+  }
+
+  /* PROGRESS BAR */
+  .progress-bar-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s 0.3s both ease;
+  }
+
+  .progress-label { font-size: 13px; color: var(--muted); white-space: nowrap; font-family: 'Space Mono', monospace; }
+  .bar { flex: 1; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width 0.5s ease; width: 0%; }
+  .progress-pct { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--accent2); }
+
+  /* NAV TABS */
+  .nav-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 18px;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+    border-radius: 6px 6px 0 0;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(59,130,246,0.06); }
+
+  /* SECTION */
+  .section { display: none; animation: fadeUp 0.4s ease; }
+  .section.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: rgba(59,130,246,0.4); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .blue { background: rgba(59,130,246,0.15); }
+  .green { background: rgba(6,214,160,0.15); }
+  .amber { background: rgba(245,158,11,0.15); }
+  .red { background: rgba(239,68,68,0.15); }
+  .purple { background: rgba(168,85,247,0.15); }
+  .pink { background: rgba(236,72,153,0.15); }
+
+  .card h3 { font-size: 1.1rem; font-weight: 700; }
+  .card p { color: var(--muted); font-size: 0.95rem; line-height: 1.7; }
+
+  /* CODE BLOCKS */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+    position: relative;
+  }
+
+  code {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: #a5d8ff;
+    line-height: 1.8;
+  }
+
+  .cmd { color: #ffd700; }
+  .comment { color: #4a5568; font-style: italic; }
+  .string { color: #98d8c8; }
+  .key { color: #c792ea; }
+
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--border);
+    border: none;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { background: var(--accent); color: white; }
+
+  /* ARCHITECTURE DIAGRAM */
+  .arch-diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 2;
+    text-align: center;
+  }
+
+  .arch-node {
+    display: inline-block;
+    border: 1px solid;
+    padding: 8px 20px;
+    border-radius: 8px;
+    margin: 4px;
+    font-size: 12px;
+  }
+
+  .node-master { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.08); }
+  .node-worker { border-color: var(--accent2); color: var(--accent2); background: rgba(6,214,160,0.08); }
+  .node-pod { border-color: var(--accent3); color: var(--accent3); background: rgba(245,158,11,0.08); }
+
+  .arch-row { display: flex; justify-content: center; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+  .arrow { color: var(--muted); font-size: 18px; }
+
+  /* QUIZ */
+  .quiz-question {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+
+  .quiz-q { font-size: 1.05rem; font-weight: 600; margin-bottom: 16px; }
+  .quiz-options { display: grid; gap: 10px; }
+
+  .quiz-opt {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    text-align: left;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+  }
+
+  .quiz-opt:hover { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .quiz-opt.correct { border-color: var(--accent2); background: rgba(6,214,160,0.1); color: var(--accent2); }
+  .quiz-opt.wrong { border-color: var(--danger); background: rgba(239,68,68,0.1); color: var(--danger); }
+
+  .quiz-feedback {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: none;
+  }
+
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok { background: rgba(6,214,160,0.1); color: var(--accent2); border: 1px solid rgba(6,214,160,0.3); }
+  .quiz-feedback.fail { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+  /* CHECKLIST */
+  .checklist { list-style: none; display: grid; gap: 10px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .checklist li:hover { border-color: var(--accent2); }
+  .checklist li.done { opacity: 0.5; text-decoration: line-through; border-color: var(--accent2); }
+  .check-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* TAGS */
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+  }
+
+  .tag-blue { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .tag-green { background: rgba(6,214,160,0.15); color: var(--accent2); }
+  .tag-amber { background: rgba(245,158,11,0.15); color: var(--accent3); }
+
+  /* SECTION TITLE */
+  .section-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 8px; }
+  .section-desc { color: var(--muted); margin-bottom: 28px; font-size: 0.95rem; }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* COMMAND TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(36,48,80,0.5); vertical-align: top; }
+  td:first-child { font-family: 'Space Mono', monospace; font-size: 12px; color: #ffd700; }
+  tr:hover td { background: rgba(59,130,246,0.04); }
+
+  /* SCROLL */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+  /* AI CHAT */
+  #chat-toggle {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    cursor: pointer;
+    font-size: 26px;
+    box-shadow: 0 4px 24px rgba(59,130,246,0.5);
+    z-index: 1000;
+    transition: transform 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #chat-toggle:hover { transform: scale(1.1); }
+
+  #chat-window {
+    position: fixed;
+    bottom: 100px; right: 28px;
+    width: 360px;
+    max-height: 520px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    z-index: 999;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+    transform: scale(0.9) translateY(20px);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  #chat-window.open {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(6,214,160,0.15));
+    border-bottom: 1px solid var(--border);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .chat-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .chat-header-info { flex: 1; }
+  .chat-header-info strong { font-size: 14px; display: block; }
+  .chat-header-info span { font-size: 11px; color: var(--accent2); }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 280px;
+    max-height: 340px;
+  }
+
+  .msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  .msg.bot {
+    background: var(--card);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+  }
+
+  .msg.user {
+    background: linear-gradient(135deg, var(--accent), #2563eb);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+    color: white;
+  }
+
+  .msg.typing { opacity: 0.6; font-style: italic; }
+
+  .chat-input-row {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    background: var(--surface);
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-input::placeholder { color: var(--muted); }
+
+  .chat-send {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .chat-send:hover { background: #2563eb; }
+  .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .chat-suggestions {
+    padding: 8px 12px 4px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .suggestion-chip {
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.3);
+    color: var(--accent);
+    border-radius: 100px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .suggestion-chip:hover { background: rgba(59,130,246,0.2); }
+
+  @media (max-width: 420px) {
+    #chat-window { width: calc(100vw - 32px); right: 16px; }
+  }
+  /* AI CHAT */
+  #chat-toggle {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    cursor: pointer;
+    font-size: 26px;
+    box-shadow: 0 4px 24px rgba(59,130,246,0.5);
+    z-index: 1000;
+    transition: transform 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #chat-toggle:hover { transform: scale(1.1); }
+
+  #chat-window {
+    position: fixed;
+    bottom: 100px; right: 28px;
+    width: 360px;
+    max-height: 520px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    z-index: 999;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+    transform: scale(0.9) translateY(20px);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  #chat-window.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+
+  .chat-header {
+    background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(6,214,160,0.15));
+    border-bottom: 1px solid var(--border);
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .chat-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .chat-header-info { flex: 1; }
+  .chat-header-info strong { font-size: 14px; display: block; }
+  .chat-header-info span { font-size: 11px; color: var(--accent2); }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    min-height: 260px; max-height: 320px;
+  }
+  .msg { max-width: 88%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.5; }
+  .msg.bot { background: var(--card); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.user { background: linear-gradient(135deg, var(--accent), #2563eb); align-self: flex-end; border-bottom-right-radius: 4px; color: white; }
+  .msg.typing { opacity: 0.6; font-style: italic; }
+
+  .chat-input-row {
+    padding: 12px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; background: var(--surface);
+  }
+  .chat-input {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 14px; color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-input::placeholder { color: var(--muted); }
+  .chat-send {
+    background: var(--accent); border: none; border-radius: 10px;
+    padding: 9px 14px; color: white; cursor: pointer; font-size: 16px;
+    transition: background 0.2s; flex-shrink: 0;
+  }
+  .chat-send:hover { background: #2563eb; }
+  .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .chat-suggestions { padding: 8px 12px 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .suggestion-chip {
+    background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3);
+    color: var(--accent); border-radius: 100px; padding: 4px 10px;
+    font-size: 11px; cursor: pointer; transition: all 0.2s; font-family: 'Syne', sans-serif;
+  }
+  .suggestion-chip:hover { background: rgba(59,130,246,0.2); }
+  @media (max-width: 420px) { #chat-window { width: calc(100vw - 32px); right: 16px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="k8s-badge">
+      <div class="dot"></div>
+      Kubernetes Learning Path — Zero to Hero
+    </div>
+    <h1>Master <span>Kubernetes</span><br>From Scratch</h1>
+    <p class="subtitle">A complete interactive guide covering every core concept — no prior experience needed.</p>
+  </header>
+
+  <div class="progress-bar-wrap">
+    <span class="progress-label">YOUR PROGRESS</span>
+    <div class="bar"><div class="bar-fill" id="progressFill"></div></div>
+    <span class="progress-pct" id="progressPct">0%</span>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="showTab('intro')">🚀 What is K8s?</button>
+    <button class="tab-btn" onclick="showTab('arch')">🏗️ Architecture</button>
+    <button class="tab-btn" onclick="showTab('objects')">📦 Core Objects</button>
+    <button class="tab-btn" onclick="showTab('commands')">⚡ kubectl</button>
+    <button class="tab-btn" onclick="showTab('yaml')">📄 YAML Files</button>
+    <button class="tab-btn" onclick="showTab('networking')">🌐 Networking</button>
+    <button class="tab-btn" onclick="showTab('helm')">⛵ Helm Charts</button>
+    <button class="tab-btn" onclick="showTab('quiz')">🧠 Quiz</button>
+    <button class="tab-btn" onclick="showTab('roadmap')">🗺️ Roadmap</button>
+  </div>
+
+  <!-- INTRO -->
+  <div class="section active" id="tab-intro">
+    <div class="section-title">What is Kubernetes?</div>
+    <p class="section-desc">Start here — understand the problem K8s solves before diving into how it works.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">🐳</div>
+        <div><h3>The Problem: Running Many Containers</h3></div>
+      </div>
+      <p>Imagine you have a web app split into 10 microservices, each running as a Docker container. You need them to start automatically, restart if they crash, scale up when traffic spikes, and communicate with each other. Doing this manually is chaos.</p>
+      <br>
+      <p><strong>Kubernetes</strong> is an open-source container orchestration platform that automates all of this — deploying, scaling, healing, and managing containers across a cluster of machines.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box green">✅</div>
+          <div><h3>What K8s Does</h3></div>
+        </div>
+        <p>🔁 Auto-restarts crashed containers<br>
+        📈 Scales up/down based on load<br>
+        🔄 Rolling updates with zero downtime<br>
+        🌐 Load balancing across pods<br>
+        🔐 Secret & config management<br>
+        💾 Persistent storage management</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box amber">🔑</div>
+          <div><h3>Key Terms to Know</h3></div>
+        </div>
+        <p><strong>Cluster</strong> — group of machines running K8s<br>
+        <strong>Node</strong> — a single machine in the cluster<br>
+        <strong>Pod</strong> — smallest deployable unit (1+ containers)<br>
+        <strong>Service</strong> — stable network endpoint for pods<br>
+        <strong>Namespace</strong> — virtual cluster within a cluster<br>
+        <strong>kubectl</strong> — CLI tool to control K8s</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box purple">📖</div>
+        <div><h3>K8s vs Docker — What's the Difference?</h3></div>
+      </div>
+      <p>Docker <strong>builds and runs</strong> individual containers. Kubernetes <strong>manages and orchestrates</strong> hundreds of containers across multiple machines. They work together — Docker (or containerd) is the container runtime, and Kubernetes is the orchestrator on top.</p>
+      <pre><code><span class="comment"># Docker: run ONE container</span>
+<span class="cmd">docker run</span> -p 80:80 nginx
+
+<span class="comment"># Kubernetes: declare desired state for MANY containers across machines</span>
+<span class="cmd">kubectl apply</span> -f nginx-deployment.yaml</code></pre>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="section" id="tab-arch">
+    <div class="section-title">Cluster Architecture</div>
+    <p class="section-desc">A Kubernetes cluster has two types of nodes: Control Plane (master) and Worker nodes.</p>
+
+    <div class="arch-diagram">
+      <div style="color: var(--accent); font-weight:700; margin-bottom:12px; font-size:14px;">KUBERNETES CLUSTER</div>
+      <div class="arch-row">
+        <div class="arch-node node-master">🧠 Control Plane (Master)</div>
+      </div>
+      <div class="arch-row">
+        <span class="arrow">↓ schedules workloads ↓</span>
+      </div>
+      <div class="arch-row">
+        <div class="arch-node node-worker">💪 Worker Node 1</div>
+        <div class="arch-node node-worker">💪 Worker Node 2</div>
+        <div class="arch-node node-worker">💪 Worker Node 3</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-node node-pod">📦 Pod</div>
+        <div class="arch-node node-pod">📦 Pod</div>
+        <div class="arch-node node-pod">📦 Pod</div>
+        <div class="arch-node node-pod">📦 Pod</div>
+        <div class="arch-node node-pod">📦 Pod</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">🧠</div>
+        <div><h3>Control Plane Components</h3></div>
+      </div>
+      <p>The brain of the cluster. It makes global decisions and manages the cluster state.</p>
+      <br>
+      <table>
+        <tr><th>COMPONENT</th><th>ROLE</th></tr>
+        <tr><td>kube-apiserver</td><td>The front door — all commands go through this REST API</td></tr>
+        <tr><td>etcd</td><td>Key-value store that holds ALL cluster state/config</td></tr>
+        <tr><td>kube-scheduler</td><td>Decides which node each new pod runs on</td></tr>
+        <tr><td>kube-controller-manager</td><td>Runs controllers that maintain desired state (e.g. ReplicaSet)</td></tr>
+        <tr><td>cloud-controller-manager</td><td>Integrates with cloud providers (AWS, GCP, Azure)</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box green">💪</div>
+        <div><h3>Worker Node Components</h3></div>
+      </div>
+      <p>Every worker node runs these three components to host your application pods.</p>
+      <br>
+      <table>
+        <tr><th>COMPONENT</th><th>ROLE</th></tr>
+        <tr><td>kubelet</td><td>Agent that ensures containers are running in pods as specified</td></tr>
+        <tr><td>kube-proxy</td><td>Handles network routing and load balancing between pods</td></tr>
+        <tr><td>container runtime</td><td>Actually runs containers — Docker, containerd, or CRI-O</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box amber">⚡</div>
+        <div><h3>How It All Works Together</h3></div>
+      </div>
+      <pre><code><span class="comment"># 1. You run a command</span>
+kubectl apply -f deployment.yaml
+
+<span class="comment"># 2. kubectl sends it to kube-apiserver</span>
+<span class="comment"># 3. apiserver saves it to etcd</span>
+<span class="comment"># 4. kube-scheduler picks a node for the pod</span>
+<span class="comment"># 5. kubelet on that node pulls the image & starts the container</span>
+<span class="comment"># 6. kube-proxy sets up networking</span>
+<span class="comment"># 7. Your app is running! 🎉</span></code></pre>
+    </div>
+  </div>
+
+  <!-- OBJECTS -->
+  <div class="section" id="tab-objects">
+    <div class="section-title">Core Kubernetes Objects</div>
+    <p class="section-desc">These are the building blocks you'll use every day. Each is a declarative API object.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box amber">📦</div>
+        <div><h3>Pod <span class="tag tag-blue">Most Basic Unit</span></h3></div>
+      </div>
+      <p>A Pod is the smallest deployable unit. It wraps one or more containers that share network and storage. Pods are <strong>ephemeral</strong> — if one dies, a new one is created with a different IP.</p>
+      <pre><code><span class="key">apiVersion:</span> <span class="string">v1</span>
+<span class="key">kind:</span> <span class="string">Pod</span>
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">my-pod</span>
+<span class="key">spec:</span>
+  <span class="key">containers:</span>
+  - <span class="key">name:</span> <span class="string">nginx</span>
+    <span class="key">image:</span> <span class="string">nginx:latest</span>
+    <span class="key">ports:</span>
+    - <span class="key">containerPort:</span> <span class="string">80</span></code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">🔁</div>
+        <div><h3>Deployment <span class="tag tag-green">Most Common</span></h3></div>
+      </div>
+      <p>Manages a ReplicaSet of identical Pods. Handles rolling updates, rollbacks, and scaling. <strong>This is what you use to run your app in production.</strong></p>
+      <pre><code><span class="key">apiVersion:</span> <span class="string">apps/v1</span>
+<span class="key">kind:</span> <span class="string">Deployment</span>
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">web-app</span>
+<span class="key">spec:</span>
+  <span class="key">replicas:</span> <span class="string">3</span>          <span class="comment"># Run 3 copies</span>
+  <span class="key">selector:</span>
+    <span class="key">matchLabels:</span>
+      <span class="key">app:</span> <span class="string">web</span>
+  <span class="key">template:</span>
+    <span class="key">metadata:</span>
+      <span class="key">labels:</span>
+        <span class="key">app:</span> <span class="string">web</span>
+    <span class="key">spec:</span>
+      <span class="key">containers:</span>
+      - <span class="key">name:</span> <span class="string">web</span>
+        <span class="key">image:</span> <span class="string">myapp:v2</span></code></pre>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box green">🌐</div>
+          <div><h3>Service</h3></div>
+        </div>
+        <p>Gives pods a stable IP and DNS name. Pods come and go, but the Service stays put. Types:</p>
+        <br>
+        <p><strong>ClusterIP</strong> — internal only (default)<br>
+        <strong>NodePort</strong> — expose on each node's IP<br>
+        <strong>LoadBalancer</strong> — cloud load balancer<br>
+        <strong>ExternalName</strong> — DNS alias</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box purple">🗂️</div>
+          <div><h3>ConfigMap & Secret</h3></div>
+        </div>
+        <p><strong>ConfigMap</strong> — stores non-sensitive config (env vars, config files)</p>
+        <br>
+        <p><strong>Secret</strong> — stores sensitive data (passwords, API keys) base64-encoded. Use with external secret managers in prod!</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box pink">💾</div>
+          <div><h3>PersistentVolume (PV/PVC)</h3></div>
+        </div>
+        <p>Pods are stateless by default. PersistentVolume provides durable storage. PVC (Claim) is how a pod requests storage. Think of PV as a disk, PVC as a reservation for that disk.</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box amber">🔁</div>
+          <div><h3>StatefulSet</h3></div>
+        </div>
+        <p>Like a Deployment but for stateful apps (databases, Kafka). Pods get stable names (pod-0, pod-1) and persistent storage that follows them even on restarts.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMANDS -->
+  <div class="section" id="tab-commands">
+    <div class="section-title">kubectl Command Reference</div>
+    <p class="section-desc">kubectl is your CLI to communicate with the Kubernetes API. Master these commands.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">⚙️</div>
+        <div><h3>Setup & Context</h3></div>
+      </div>
+      <pre><button class="copy-btn" onclick="copyCode(this)">copy</button><code><span class="comment"># Check version</span>
+<span class="cmd">kubectl version</span>
+
+<span class="comment"># View cluster info</span>
+<span class="cmd">kubectl cluster-info</span>
+
+<span class="comment"># List all contexts (clusters)</span>
+<span class="cmd">kubectl config get-contexts</span>
+
+<span class="comment"># Switch context</span>
+<span class="cmd">kubectl config use-context</span> my-cluster
+
+<span class="comment"># Set default namespace</span>
+<span class="cmd">kubectl config set-context --current --namespace</span>=dev</code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box green">🔍</div>
+        <div><h3>Viewing Resources</h3></div>
+      </div>
+      <pre><button class="copy-btn" onclick="copyCode(this)">copy</button><code><span class="comment"># List all pods</span>
+<span class="cmd">kubectl get pods</span>
+<span class="cmd">kubectl get pods -A</span>                 <span class="comment"># All namespaces</span>
+<span class="cmd">kubectl get pods -o wide</span>            <span class="comment"># Show node info</span>
+
+<span class="comment"># Describe a resource (full details)</span>
+<span class="cmd">kubectl describe pod</span> my-pod
+<span class="cmd">kubectl describe node</span> worker-1
+
+<span class="comment"># View logs</span>
+<span class="cmd">kubectl logs</span> my-pod
+<span class="cmd">kubectl logs</span> my-pod <span class="cmd">-f</span>            <span class="comment"># Follow/stream logs</span>
+<span class="cmd">kubectl logs</span> my-pod <span class="cmd">-c</span> container1  <span class="comment"># Specific container</span>
+
+<span class="comment"># Get all resources</span>
+<span class="cmd">kubectl get all</span></code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box amber">🚀</div>
+        <div><h3>Creating & Managing</h3></div>
+      </div>
+      <pre><button class="copy-btn" onclick="copyCode(this)">copy</button><code><span class="comment"># Apply a YAML file (create or update)</span>
+<span class="cmd">kubectl apply -f</span> deployment.yaml
+<span class="cmd">kubectl apply -f</span> ./k8s/           <span class="comment"># Apply all files in dir</span>
+
+<span class="comment"># Delete resources</span>
+<span class="cmd">kubectl delete -f</span> deployment.yaml
+<span class="cmd">kubectl delete pod</span> my-pod
+
+<span class="comment"># Scale a deployment</span>
+<span class="cmd">kubectl scale deployment</span> web-app <span class="cmd">--replicas</span>=5
+
+<span class="comment"># Rolling update (new image)</span>
+<span class="cmd">kubectl set image deployment</span>/web-app web=myapp:v3
+
+<span class="comment"># Rollback</span>
+<span class="cmd">kubectl rollout undo deployment</span>/web-app
+
+<span class="comment"># Check rollout status</span>
+<span class="cmd">kubectl rollout status deployment</span>/web-app</code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box purple">🔧</div>
+        <div><h3>Debugging</h3></div>
+      </div>
+      <pre><button class="copy-btn" onclick="copyCode(this)">copy</button><code><span class="comment"># Shell into a running pod</span>
+<span class="cmd">kubectl exec -it</span> my-pod <span class="cmd">-- /bin/bash</span>
+
+<span class="comment"># Port-forward to access locally</span>
+<span class="cmd">kubectl port-forward</span> pod/my-pod 8080:80
+<span class="cmd">kubectl port-forward</span> svc/my-service 8080:80
+
+<span class="comment"># Run a temporary debug pod</span>
+<span class="cmd">kubectl run debug --rm -it --image</span>=busybox <span class="cmd">-- sh</span>
+
+<span class="comment"># Watch pods in real-time</span>
+<span class="cmd">kubectl get pods -w</span>
+
+<span class="comment"># Get events (great for debugging)</span>
+<span class="cmd">kubectl get events --sort-by</span>='.lastTimestamp'</code></pre>
+    </div>
+  </div>
+
+  <!-- YAML -->
+  <div class="section" id="tab-yaml">
+    <div class="section-title">Writing YAML Manifests</div>
+    <p class="section-desc">Kubernetes resources are defined as YAML files. Here are real-world examples.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">📄</div>
+        <div><h3>Complete App Deployment</h3></div>
+      </div>
+      <p>A typical setup has a Deployment + Service. Here's a full working example:</p>
+      <pre><button class="copy-btn" onclick="copyCode(this)">copy</button><code><span class="comment">--- # deployment.yaml</span>
+<span class="key">apiVersion:</span> <span class="string">apps/v1</span>
+<span class="key">kind:</span> <span class="string">Deployment</span>
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">web-app</span>
+  <span class="key">namespace:</span> <span class="string">production</span>
+  <span class="key">labels:</span>
+    <span class="key">app:</span> <span class="string">web</span>
+    <span class="key">version:</span> <span class="string">v2</span>
+<span class="key">spec:</span>
+  <span class="key">replicas:</span> <span class="string">3</span>
+  <span class="key">selector:</span>
+    <span class="key">matchLabels:</span>
+      <span class="key">app:</span> <span class="string">web</span>
+  <span class="key">strategy:</span>
+    <span class="key">type:</span> <span class="string">RollingUpdate</span>
+    <span class="key">rollingUpdate:</span>
+      <span class="key">maxSurge:</span> <span class="string">1</span>
+      <span class="key">maxUnavailable:</span> <span class="string">0</span>
+  <span class="key">template:</span>
+    <span class="key">metadata:</span>
+      <span class="key">labels:</span>
+        <span class="key">app:</span> <span class="string">web</span>
+    <span class="key">spec:</span>
+      <span class="key">containers:</span>
+      - <span class="key">name:</span> <span class="string">web</span>
+        <span class="key">image:</span> <span class="string">myapp:v2</span>
+        <span class="key">ports:</span>
+        - <span class="key">containerPort:</span> <span class="string">3000</span>
+        <span class="key">env:</span>
+        - <span class="key">name:</span> <span class="string">NODE_ENV</span>
+          <span class="key">value:</span> <span class="string">production</span>
+        - <span class="key">name:</span> <span class="string">DB_PASSWORD</span>
+          <span class="key">valueFrom:</span>
+            <span class="key">secretKeyRef:</span>
+              <span class="key">name:</span> <span class="string">db-secret</span>
+              <span class="key">key:</span> <span class="string">password</span>
+        <span class="key">resources:</span>
+          <span class="key">requests:</span>
+            <span class="key">cpu:</span> <span class="string">100m</span>
+            <span class="key">memory:</span> <span class="string">128Mi</span>
+          <span class="key">limits:</span>
+            <span class="key">cpu:</span> <span class="string">500m</span>
+            <span class="key">memory:</span> <span class="string">512Mi</span>
+        <span class="key">livenessProbe:</span>
+          <span class="key">httpGet:</span>
+            <span class="key">path:</span> <span class="string">/health</span>
+            <span class="key">port:</span> <span class="string">3000</span>
+          <span class="key">initialDelaySeconds:</span> <span class="string">10</span>
+        <span class="key">readinessProbe:</span>
+          <span class="key">httpGet:</span>
+            <span class="key">path:</span> <span class="string">/ready</span>
+            <span class="key">port:</span> <span class="string">3000</span>
+---
+<span class="key">apiVersion:</span> <span class="string">v1</span>
+<span class="key">kind:</span> <span class="string">Service</span>
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">web-app-svc</span>
+<span class="key">spec:</span>
+  <span class="key">selector:</span>
+    <span class="key">app:</span> <span class="string">web</span>
+  <span class="key">ports:</span>
+  - <span class="key">port:</span> <span class="string">80</span>
+    <span class="key">targetPort:</span> <span class="string">3000</span>
+  <span class="key">type:</span> <span class="string">LoadBalancer</span></code></pre>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box green">🔐</div>
+          <div><h3>ConfigMap</h3></div>
+        </div>
+        <pre><code><span class="key">apiVersion:</span> <span class="string">v1</span>
+<span class="key">kind:</span> <span class="string">ConfigMap</span>
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">app-config</span>
+<span class="key">data:</span>
+  <span class="key">APP_PORT:</span> <span class="string">"3000"</span>
+  <span class="key">LOG_LEVEL:</span> <span class="string">info</span>
+  <span class="key">config.json:</span> |
+    {
+      "theme": "dark"
+    }</code></pre>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box red">🔒</div>
+          <div><h3>Secret</h3></div>
+        </div>
+        <pre><code><span class="key">apiVersion:</span> <span class="string">v1</span>
+<span class="key">kind:</span> <span class="string">Secret</span>
+<span class="key">metadata:</span>
+  <span class="key">name:</span> <span class="string">db-secret</span>
+<span class="key">type:</span> <span class="string">Opaque</span>
+<span class="key">data:</span>
+  <span class="comment"># Values must be base64 encoded</span>
+  <span class="key">username:</span> <span class="string">YWRtaW4=</span>
+  <span class="key">password:</span> <span class="string">cGFzc3dvcmQ=</span>
+<span class="comment">
+# echo -n 'admin' | base64</span></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- NETWORKING -->
+  <div class="section" id="tab-networking">
+    <div class="section-title">Networking in Kubernetes</div>
+    <p class="section-desc">How pods talk to each other and the outside world.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">🌐</div>
+        <div><h3>Networking Rules</h3></div>
+      </div>
+      <p>K8s networking follows three key rules:</p>
+      <br>
+      <p>1️⃣ <strong>Every pod gets its own IP</strong> — no NAT between pods<br>
+      2️⃣ <strong>All pods can talk to all other pods</strong> without port mapping<br>
+      3️⃣ <strong>Nodes can talk to pods</strong> and vice versa</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box green">🔀</div>
+          <div><h3>Service Types</h3></div>
+        </div>
+        <p><strong>ClusterIP</strong><br>
+        <code style="font-size:11px">10.96.0.1:80</code> — internal only, default</p>
+        <br>
+        <p><strong>NodePort</strong><br>
+        <code style="font-size:11px">nodeIP:30080</code> — accessible from outside on each node</p>
+        <br>
+        <p><strong>LoadBalancer</strong><br>
+        Cloud provider creates an external LB with a public IP</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon-box purple">🚪</div>
+          <div><h3>Ingress</h3></div>
+        </div>
+        <p>An Ingress routes HTTP/HTTPS traffic to Services based on domain or path. Think of it as a reverse proxy / API gateway for your cluster.</p>
+        <br>
+        <pre><code><span class="comment"># Route traffic:</span>
+<span class="string">api.example.com</span> → api-svc
+<span class="string">app.example.com</span> → frontend-svc
+<span class="string">/v1/users</span>       → user-svc</code></pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box amber">📡</div>
+        <div><h3>DNS in Kubernetes</h3></div>
+      </div>
+      <p>K8s has built-in DNS (CoreDNS). Services get DNS names automatically:</p>
+      <pre><code><span class="comment"># Format: service-name.namespace.svc.cluster.local</span>
+<span class="string">my-service.default.svc.cluster.local</span>
+
+<span class="comment"># Within same namespace, just use service name:</span>
+<span class="cmd">curl</span> http://web-app-svc/api/users
+
+<span class="comment"># Cross-namespace:</span>
+<span class="cmd">curl</span> http://web-app-svc.production.svc.cluster.local</code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box red">🔒</div>
+        <div><h3>NetworkPolicy</h3></div>
+      </div>
+      <p>By default, all pods can talk to all pods. NetworkPolicy lets you restrict traffic — like a firewall for pod-to-pod communication.</p>
+      <pre><code><span class="comment"># Only allow traffic from pods with label app=frontend</span>
+<span class="key">spec:</span>
+  <span class="key">podSelector:</span>
+    <span class="key">matchLabels:</span>
+      <span class="key">app:</span> <span class="string">database</span>
+  <span class="key">ingress:</span>
+  - <span class="key">from:</span>
+    - <span class="key">podSelector:</span>
+        <span class="key">matchLabels:</span>
+          <span class="key">app:</span> <span class="string">frontend</span></code></pre>
+    </div>
+  </div>
+
+  <!-- HELM CHARTS -->
+  <div class="section" id="tab-helm">
+    <div class="section-title">Helm Charts ⛵</div>
+    <p class="section-desc">Helm is the package manager for Kubernetes — like npm for Node.js or apt for Ubuntu.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">⛵</div>
+        <div><h3>What is Helm?</h3></div>
+      </div>
+      <p>Managing dozens of YAML files for every app is painful. Helm bundles all K8s resources into a single <strong>Chart</strong> — a reusable, versioned package. You can install, upgrade, roll back, and share apps with a single command.</p>
+      <br>
+      <p>🔑 <strong>Chart</strong> — a Helm package (collection of YAML templates)<br>
+      🔑 <strong>Release</strong> — an installed instance of a chart<br>
+      🔑 <strong>Repository</strong> — a place to store and share charts<br>
+      🔑 <strong>values.yaml</strong> — config file to customize a chart</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box green">📁</div>
+        <div><h3>Helm Chart Structure</h3></div>
+      </div>
+      <pre><code><span class="string">my-app/</span>
+├── <span class="key">Chart.yaml</span>          <span class="comment"># Chart metadata (name, version, description)</span>
+├── <span class="key">values.yaml</span>         <span class="comment"># Default configuration values</span>
+├── <span class="key">charts/</span>             <span class="comment"># Sub-charts (dependencies)</span>
+└── <span class="key">templates/</span>          <span class="comment"># K8s YAML templates</span>
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── ingress.yaml
+    ├── configmap.yaml
+    └── _helpers.tpl    <span class="comment"># Reusable template snippets</span></code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box amber">⚡</div>
+        <div><h3>Essential Helm Commands</h3></div>
+      </div>
+      <pre><button class="copy-btn" onclick="copyCode(this)">copy</button><code><span class="comment"># Install Helm (macOS)</span>
+<span class="cmd">brew install helm</span>
+
+<span class="comment"># Add a chart repository</span>
+<span class="cmd">helm repo add</span> bitnami https://charts.bitnami.com/bitnami
+<span class="cmd">helm repo update</span>
+
+<span class="comment"># Search for charts</span>
+<span class="cmd">helm search repo</span> nginx
+<span class="cmd">helm search hub</span> wordpress        <span class="comment"># Search Artifact Hub</span>
+
+<span class="comment"># Install a chart (creates a "release")</span>
+<span class="cmd">helm install</span> my-nginx bitnami/nginx
+<span class="cmd">helm install</span> my-app ./my-app/    <span class="comment"># From local chart</span>
+
+<span class="comment"># Install with custom values</span>
+<span class="cmd">helm install</span> my-app bitnami/nginx <span class="cmd">--values</span> custom-values.yaml
+<span class="cmd">helm install</span> my-app bitnami/nginx <span class="cmd">--set</span> replicaCount=3
+
+<span class="comment"># List installed releases</span>
+<span class="cmd">helm list</span>
+<span class="cmd">helm list -A</span>                     <span class="comment"># All namespaces</span>
+
+<span class="comment"># Upgrade a release</span>
+<span class="cmd">helm upgrade</span> my-nginx bitnami/nginx <span class="cmd">--set</span> replicaCount=5
+
+<span class="comment"># Rollback to previous version</span>
+<span class="cmd">helm rollback</span> my-nginx 1         <span class="comment"># Roll back to revision 1</span>
+
+<span class="comment"># Uninstall a release</span>
+<span class="cmd">helm uninstall</span> my-nginx
+
+<span class="comment"># Show release history</span>
+<span class="cmd">helm history</span> my-nginx</code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box purple">📝</div>
+        <div><h3>Chart.yaml — Chart Metadata</h3></div>
+      </div>
+      <pre><code><span class="key">apiVersion:</span> <span class="string">v2</span>
+<span class="key">name:</span> <span class="string">my-app</span>
+<span class="key">description:</span> <span class="string">A Helm chart for my web application</span>
+<span class="key">type:</span> <span class="string">application</span>
+<span class="key">version:</span> <span class="string">0.1.0</span>          <span class="comment"># Chart version</span>
+<span class="key">appVersion:</span> <span class="string">"2.1.0"</span>    <span class="comment"># App version inside</span>
+<span class="key">dependencies:</span>
+- <span class="key">name:</span> <span class="string">postgresql</span>
+  <span class="key">version:</span> <span class="string">12.x.x</span>
+  <span class="key">repository:</span> <span class="string">https://charts.bitnami.com/bitnami</span></code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box green">⚙️</div>
+        <div><h3>values.yaml — Customization</h3></div>
+      </div>
+      <p>This is the heart of Helm — define defaults that users can override.</p>
+      <pre><code><span class="comment"># values.yaml</span>
+<span class="key">replicaCount:</span> <span class="string">2</span>
+
+<span class="key">image:</span>
+  <span class="key">repository:</span> <span class="string">myapp</span>
+  <span class="key">tag:</span> <span class="string">"latest"</span>
+  <span class="key">pullPolicy:</span> <span class="string">IfNotPresent</span>
+
+<span class="key">service:</span>
+  <span class="key">type:</span> <span class="string">ClusterIP</span>
+  <span class="key">port:</span> <span class="string">80</span>
+
+<span class="key">ingress:</span>
+  <span class="key">enabled:</span> <span class="string">false</span>
+  <span class="key">host:</span> <span class="string">myapp.example.com</span>
+
+<span class="key">resources:</span>
+  <span class="key">limits:</span>
+    <span class="key">cpu:</span> <span class="string">500m</span>
+    <span class="key">memory:</span> <span class="string">512Mi</span>
+  <span class="key">requests:</span>
+    <span class="key">cpu:</span> <span class="string">100m</span>
+    <span class="key">memory:</span> <span class="string">128Mi</span></code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box red">🧩</div>
+        <div><h3>Templates — Using Values in YAML</h3></div>
+      </div>
+      <p>Templates use Go templating syntax <code>{{ }}</code> to inject values dynamically.</p>
+      <pre><code><span class="comment"># templates/deployment.yaml</span>
+<span class="key">apiVersion:</span> <span class="string">apps/v1</span>
+<span class="key">kind:</span> <span class="string">Deployment</span>
+<span class="key">metadata:</span>
+  <span class="key">name:</span> {{ .Release.Name }}-app
+  <span class="key">labels:</span>
+    <span class="key">app:</span> {{ .Chart.Name }}
+    <span class="key">version:</span> {{ .Chart.Version }}
+<span class="key">spec:</span>
+  <span class="key">replicas:</span> {{ .Values.replicaCount }}
+  <span class="key">template:</span>
+    <span class="key">spec:</span>
+      <span class="key">containers:</span>
+      - <span class="key">name:</span> app
+        <span class="key">image:</span> "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        {{- if .Values.ingress.enabled }}
+        <span class="comment"># This block only renders if ingress.enabled = true</span>
+        {{- end }}</code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box amber">🔍</div>
+        <div><h3>Debugging Helm</h3></div>
+      </div>
+      <pre><button class="copy-btn" onclick="copyCode(this)">copy</button><code><span class="comment"># Render templates locally (without installing)</span>
+<span class="cmd">helm template</span> my-app ./my-app/
+
+<span class="comment"># Dry run — validate against cluster</span>
+<span class="cmd">helm install</span> my-app ./my-app/ <span class="cmd">--dry-run</span>
+
+<span class="comment"># Lint chart for errors</span>
+<span class="cmd">helm lint</span> ./my-app/
+
+<span class="comment"># Show computed values for a release</span>
+<span class="cmd">helm get values</span> my-app
+
+<span class="comment"># Show all rendered manifests for a release</span>
+<span class="cmd">helm get manifest</span> my-app</code></pre>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">🌍</div>
+        <div><h3>Popular Public Charts</h3></div>
+      </div>
+      <p>The <strong>Artifact Hub</strong> (artifacthub.io) has thousands of ready-made charts:</p>
+      <br>
+      <table>
+        <tr><th>APP</th><th>INSTALL COMMAND</th></tr>
+        <tr><td>nginx</td><td><code style="font-size:11px">helm install my-nginx bitnami/nginx</code></td></tr>
+        <tr><td>PostgreSQL</td><td><code style="font-size:11px">helm install my-pg bitnami/postgresql</code></td></tr>
+        <tr><td>Redis</td><td><code style="font-size:11px">helm install my-redis bitnami/redis</code></td></tr>
+        <tr><td>Prometheus</td><td><code style="font-size:11px">helm install prom prometheus-community/prometheus</code></td></tr>
+        <tr><td>cert-manager</td><td><code style="font-size:11px">helm install cert-manager jetstack/cert-manager</code></td></tr>
+        <tr><td>ArgoCD</td><td><code style="font-size:11px">helm install argocd argo/argo-cd</code></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="section" id="tab-quiz">
+    <div class="section-title">Knowledge Check 🧠</div>
+    <p class="section-desc">Test what you've learned. Click an answer to see if you got it right!</p>
+
+    <div class="quiz-question" id="q1">
+      <div class="quiz-q">1. What is the smallest deployable unit in Kubernetes?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q1',false)">Container</button>
+        <button class="quiz-opt" onclick="answer(this,'q1',true)">Pod</button>
+        <button class="quiz-opt" onclick="answer(this,'q1',false)">Deployment</button>
+        <button class="quiz-opt" onclick="answer(this,'q1',false)">Node</button>
+      </div>
+      <div class="quiz-feedback" id="q1-fb"></div>
+    </div>
+
+    <div class="quiz-question" id="q2">
+      <div class="quiz-q">2. Which component stores the entire state of a Kubernetes cluster?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q2',false)">kube-apiserver</button>
+        <button class="quiz-opt" onclick="answer(this,'q2',false)">kube-scheduler</button>
+        <button class="quiz-opt" onclick="answer(this,'q2',true)">etcd</button>
+        <button class="quiz-opt" onclick="answer(this,'q2',false)">kubelet</button>
+      </div>
+      <div class="quiz-feedback" id="q2-fb"></div>
+    </div>
+
+    <div class="quiz-question" id="q3">
+      <div class="quiz-q">3. What kubectl command applies a YAML file to the cluster?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q3',false)">kubectl create -f file.yaml</button>
+        <button class="quiz-opt" onclick="answer(this,'q3',true)">kubectl apply -f file.yaml</button>
+        <button class="quiz-opt" onclick="answer(this,'q3',false)">kubectl run -f file.yaml</button>
+        <button class="quiz-opt" onclick="answer(this,'q3',false)">kubectl deploy -f file.yaml</button>
+      </div>
+      <div class="quiz-feedback" id="q3-fb"></div>
+    </div>
+
+    <div class="quiz-question" id="q4">
+      <div class="quiz-q">4. Which Service type creates a cloud provider load balancer with a public IP?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q4',false)">ClusterIP</button>
+        <button class="quiz-opt" onclick="answer(this,'q4',false)">NodePort</button>
+        <button class="quiz-opt" onclick="answer(this,'q4',true)">LoadBalancer</button>
+        <button class="quiz-opt" onclick="answer(this,'q4',false)">Ingress</button>
+      </div>
+      <div class="quiz-feedback" id="q4-fb"></div>
+    </div>
+
+    <div class="quiz-question" id="q5">
+      <div class="quiz-q">5. Which K8s object is best for running a stateful database?</div>
+      <div class="quiz-options">
+        <button class="quiz-opt" onclick="answer(this,'q5',false)">Deployment</button>
+        <button class="quiz-opt" onclick="answer(this,'q5',false)">DaemonSet</button>
+        <button class="quiz-opt" onclick="answer(this,'q5',true)">StatefulSet</button>
+        <button class="quiz-opt" onclick="answer(this,'q5',false)">ReplicaSet</button>
+      </div>
+      <div class="quiz-feedback" id="q5-fb"></div>
+    </div>
+
+    <div id="quiz-score" style="display:none; text-align:center; padding: 28px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-top: 20px;">
+      <div style="font-size: 3rem; margin-bottom: 12px;">🎉</div>
+      <div style="font-size: 1.5rem; font-weight:800;" id="score-text"></div>
+      <div style="color: var(--muted); margin-top: 8px;">Keep studying with the roadmap tab!</div>
+    </div>
+  </div>
+
+  <!-- ROADMAP -->
+  <div class="section" id="tab-roadmap">
+    <div class="section-title">Your Learning Roadmap</div>
+    <p class="section-desc">Check off topics as you complete them. Click to toggle.</p>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box green">🌱</div>
+        <div><h3>Phase 1 — Foundations</h3><span class="tag tag-green">START HERE</span></div>
+      </div>
+      <ul class="checklist" id="phase1">
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Understand what containers are (Docker basics)</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Understand the K8s architecture (control plane vs workers)</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Install minikube or kind locally</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Run your first pod with kubectl</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Understand Pods, Deployments, and Services</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box blue">📘</div>
+        <div><h3>Phase 2 — Core Skills</h3><span class="tag tag-blue">INTERMEDIATE</span></div>
+      </div>
+      <ul class="checklist" id="phase2">
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Write YAML manifests from scratch</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Master kubectl (get, describe, logs, exec)</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Use ConfigMaps and Secrets</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Configure resource requests and limits</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Set up liveness and readiness probes</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Deploy an Ingress controller (nginx-ingress)</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Work with Namespaces</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box amber">🔥</div>
+        <div><h3>Phase 3 — Production Ready</h3><span class="tag tag-amber">ADVANCED</span></div>
+      </div>
+      <ul class="checklist" id="phase3">
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> HorizontalPodAutoscaler (HPA) for auto-scaling</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> RBAC — Role-Based Access Control</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Helm charts for package management</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> StatefulSets for databases</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> NetworkPolicies for pod isolation</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Monitoring with Prometheus + Grafana</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> GitOps with ArgoCD or Flux</li>
+        <li onclick="toggle(this)"><span class="check-icon">⬜</span> Deploy on a real cloud (EKS, GKE, or AKS)</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon-box purple">🏆</div>
+        <div><h3>Recommended Resources</h3></div>
+      </div>
+      <p>📚 <strong>Official Docs</strong> — kubernetes.io/docs (free, comprehensive)<br>
+      🎮 <strong>KillerCoda</strong> — free browser-based K8s playground<br>
+      🎓 <strong>CKA Exam</strong> — Certified Kubernetes Administrator (the industry cert)<br>
+      📖 <strong>"Kubernetes in Action"</strong> by Marko Lukša (best book)<br>
+      🎥 <strong>TechWorld with Nana</strong> — YouTube K8s series (free)<br>
+      ☁️ <strong>Play with Kubernetes</strong> — labs.play-with-k8s.com</p>
+    </div>
+  </div>
+
+  <div style="height: 60px;"></div>
+</div>
+
+<script>
+  let visited = new Set(['intro']);
+
+  const quizAnswers = {
+    q1: "A Pod is the smallest unit. It wraps one or more containers. You can't deploy a container directly — it must be inside a Pod.",
+    q2: "etcd is the distributed key-value store that holds ALL cluster state. It's the source of truth.",
+    q3: "kubectl apply -f is the standard way. It creates OR updates resources, making it idempotent.",
+    q4: "LoadBalancer type provisions a cloud provider load balancer. It's the easiest way to expose services externally.",
+    q5: "StatefulSet is designed for stateful apps. Pods get stable identities (pod-0, pod-1) and persistent storage."
+  };
+  let quizAnswered = {};
+
+  function answer(btn, qid, correct) {
+    if (quizAnswered[qid]) return;
+    quizAnswered[qid] = true;
+    btn.parentElement.querySelectorAll('.quiz-opt').forEach(o => o.style.pointerEvents = 'none');
+    btn.classList.add(correct ? 'correct' : 'wrong');
+    const fb = document.getElementById(qid + '-fb');
+    fb.textContent = (correct ? '✅ Correct! ' : '❌ Not quite. ') + quizAnswers[qid];
+    fb.className = 'quiz-feedback show ' + (correct ? 'ok' : 'fail');
+    updateProgress();
+    if (Object.keys(quizAnswered).length === 5) {
+      const score = Object.values(quizAnswered).filter(Boolean).length;
+      document.getElementById('quiz-score').style.display = 'block';
+      document.getElementById('score-text').textContent = `You got ${score}/5 correct!`;
+    }
+  }
+
+  function showTab(id) {
+    visited.add(id);
+    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+    updateProgress();
+  }
+
+  function updateProgress() {
+    const totalSections = 9;
+    const done = checked + visited.size;
+    const pct = Math.min(100, Math.round((done / (totalSections + 20)) * 100));
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+  }
+
+  let checked = 0;
+
+  function toggle(el) {
+    const isDone = el.classList.toggle('done');
+    el.querySelector('.check-icon').textContent = isDone ? '✅' : '⬜';
+    checked += isDone ? 1 : -1;
+    updateProgress();
+  }
+
+  function copyCode(btn) {
+    const code = btn.nextElementSibling.innerText;
+    navigator.clipboard.writeText(code).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+
+  // ---- AI CHAT ----
+  let chatOpen = false;
+  let chatHistory = [];
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById('chat-window').classList.toggle('open', chatOpen);
+    document.getElementById('chat-toggle').textContent = chatOpen ? '✕' : '🤖';
+    if (chatOpen) setTimeout(() => document.getElementById('chatInput').focus(), 300);
+  }
+
+  function sendSuggestion(btn) {
+    document.getElementById('chatInput').value = btn.textContent;
+    document.getElementById('suggestions').style.display = 'none';
+    sendChat();
+  }
+
+  function appendMsg(text, role) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.textContent = text;
+    const msgs = document.getElementById('chatMessages');
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  async function sendChat() {
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSend');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    sendBtn.disabled = true;
+    appendMsg(text, 'user');
+    chatHistory.push({ role: 'user', content: text });
+    const typingDiv = appendMsg('Thinking...', 'bot typing');
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: `You are an expert Kubernetes tutor inside an interactive learning guide. Answer questions clearly and concisely about Kubernetes, Helm charts, kubectl, YAML, networking, and DevOps topics. Use simple language since the user may be a beginner. Use short code examples when helpful. Keep answers under 200 words unless detail is truly needed. Always be encouraging and friendly.`,
+          messages: chatHistory
+        })
+      });
+      const data = await response.json();
+      const reply = data.content?.map(b => b.text || '').join('') || 'Sorry, no response received.';
+      typingDiv.classList.remove('typing');
+      typingDiv.textContent = reply;
+      chatHistory.push({ role: 'assistant', content: reply });
+    } catch (err) {
+      typingDiv.classList.remove('typing');
+      typingDiv.textContent = '⚠️ Could not connect. Please try again.';
+    }
+    sendBtn.disabled = false;
+    document.getElementById('chatMessages').scrollTop = 9999;
+    input.focus();
+  }
+</script>
+
+<!-- AI HELP CHAT -->
+<button id="chat-toggle" onclick="toggleChat()" title="Ask K8s AI Assistant">🤖</button>
+
+<div id="chat-window">
+  <div class="chat-header">
+    <div class="chat-avatar">⛵</div>
+    <div class="chat-header-info">
+      <strong>K8s Assistant</strong>
+      <span>● Ask me anything about Kubernetes & Helm</span>
+    </div>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="msg bot">👋 Hi! I'm your Kubernetes AI tutor. Ask me anything — Helm charts, pods, networking, YAML, or any concept you're stuck on!</div>
+  </div>
+  <div class="chat-suggestions" id="suggestions">
+    <button class="suggestion-chip" onclick="sendSuggestion(this)">What is a Helm chart?</button>
+    <button class="suggestion-chip" onclick="sendSuggestion(this)">Pod vs Deployment?</button>
+    <button class="suggestion-chip" onclick="sendSuggestion(this)">How does Ingress work?</button>
+    <button class="suggestion-chip" onclick="sendSuggestion(this)">What is etcd?</button>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chatInput" placeholder="Ask a Kubernetes question..." onkeydown="if(event.key==='Enter') sendChat()" />
+    <button class="chat-send" id="chatSend" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+</body>
+</html>
